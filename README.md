@@ -8,5 +8,22 @@ For Push Test 1 (PT1) and later this node is to generate and send PGN (??navigat
 ## Notes
 This node should provide the PGN for the compass heading, latitude, longitude, heading, time, and IMU orientation roll pitch yaw (pitch roll yaw? which rotation sequence are we using). 
 
+## Interface control
+This node must send heartbeat and ISO address claim plus
+Position, Rapid update: 129025
+             1: Latitude
+             2: Longitude
+Direction Data: 130577
+              1: Data Mode
+              2: COG ref
+              3: reserve bits
+              4: SID
+              5: COG
+              6: SOG
+              7: heading
+              8: Speed through water
+              9: set
+             10: drift
+
 ## Applicability
 USNA Sailbot AY20 Hull 14 mod 3 and later.
