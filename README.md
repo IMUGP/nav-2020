@@ -9,7 +9,7 @@ For Push Test 1 (PT1) and later this node is to generate and send PGN (??navigat
 This node should provide the PGN for the compass heading, latitude, longitude, heading, time, and IMU orientation roll pitch yaw (pitch roll yaw? which rotation sequence are we using). 
 
 ## Interface control
-This node must send heartbeat and ISO address claim plus
+This node must send heartbeat 126993 and ISO address claim 060928 plus
 Position, Rapid update: 129025
              1: Latitude
              2: Longitude
