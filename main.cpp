@@ -9,12 +9,13 @@
 //#include "pgn/Pgn060928.h" // ISO address claim
 //#include "pgn/Pgn126993.h" // heartbeat
 //#include "pgn/Pgn129025.h" // position (rapid update?)
-//#include "pgn/Pgn130577.h" // direction data 
-#define __VERSION__ "14.3.0"
+//#include "pgn/Pgn127250.h" // vessel heading 
+//#include "pgn/Pgn130577.h" // direction data REQUIRES FASTPACKET
+#define NAV_VERSION "14.3.0 PT1"
 
 Serial pc(USBTX,USBRX);
 
-// We have the GPS connected to (p9,p10). The BNO is connected to (p28, p27).  The RPI node is communicating through USB RX and TX.
+// We have the GPS connected to (p9,p10). The BNO is connected to (p28, p27).
 // TODO adafruit absolute GPS
 // TODO adafruit absolute orientation
 
