@@ -5,12 +5,13 @@
 
 #include "mbed.h"
 #include "rtos.h"
-//#include "nmea2k.h"
-//#include "pgn/Pgn060928.h" // ISO address claim
-//#include "pgn/Pgn126993.h" // heartbeat
+#include "nmea2k.h"
+//#include "pgn/iso/Pgn60928.h" // ISO address claim
+#include "pgn/Pgn126993.h" // heartbeat
 //#include "pgn/Pgn129025.h" // position (rapid update?)
 //#include "pgn/Pgn127250.h" // vessel heading 
 //#include "pgn/Pgn130577.h" // direction data REQUIRES FASTPACKET
+#include "hull14mod3.h"
 #define NAV_VERSION "14.3.0 PT1"
 
 Serial pc(USBTX,USBRX);
@@ -36,8 +37,8 @@ int main(void){
   nmea2k::Frame f;
   nmea2k::PduHeader h;
 
-  pc.printf("Nav node version %s\r\n",__VERSION__); 
-  //pc.printf("nmea2k version %s\r\n",NMEA2K_VERSION);
+  pc.printf("0x%02x:main: Nav node version %s\r\n",node_addr,NAV_VERSION); 
+  //pc.printf("0x%02x:main: nmea2k version %s\r\n",node_addr,NMEA2K_VERSION);
 
   // TODO
   // assert ISO address
