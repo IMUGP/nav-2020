@@ -8,6 +8,8 @@ For Push Test 1 (PT1) and later this node is to generate and send PGN (??navigat
 ## Notes
 This node should provide the PGN for the compass heading, latitude, longitude, heading, time, and IMU orientation roll pitch yaw (pitch roll yaw? which rotation sequence are we using). 
 
+The BNO055 and GPS libraries need to be added. The libraries were pulled from the mbed website, looking for their repositories on Github so I can add the libraries like Dr. Evangelista instead of added the entire header and cpp files.
+
 ## Interface control
 This node must send heartbeat 126993 and ISO address claim 060928 plus
 Position, Rapid update: 129025
