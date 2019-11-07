@@ -5,20 +5,20 @@
 
 #include "mbed.h"
 #include "rtos.h"
-#include "BNO055.h"
+#include "SailbotIMU.h"
+#include "SailbotGPS.h"
 #include "nmea2k.h"
 //#include "pgn/iso/Pgn60928.h" // ISO address claim
 #include "pgn/Pgn126993.h" // heartbeat
-//#include "pgn/Pgn129025.h" // position (rapid update?)
+#include "pgn/Pgn129025.h" // position, rapid update
 #include "pgn/Pgn127250.h" // vessel heading
 //#include "pgn/Pgn130577.h" // direction data REQUIRES FASTPACKET
 #include "hull14mod3.h"
 #define NAV_VERSION "14.3.0 PT1"
 
 Serial pc(USBTX,USBRX);
-BNO055 imu(p28, p27); // adafruit absolute orientation BNO055
-// We have the GPS connected to (p9,p10). The BNO is connected to (p28, p27).
-// TODO adafruit absolute gps
+SailbotIMU imu(p28,p27); // adafruit absolute orientation BNO055
+SailbotGPS gps(p9,p10); // adafruit absolute GPS
 
 nmea2k::CANLayer n2k(p30,p29); // used for sending nmea2k messages
 DigitalOut txled(LED1);
@@ -39,19 +39,19 @@ int main(void)
     nmea2k::PduHeader h;
 
     pc.printf("0x%02x:main: Nav node version %s\r\n",node_addr,NAV_VERSION);
-    //pc.printf("0x%02x:main: nmea2k version %s\r\n",node_addr,NMEA2K_VERSION);
-    imu.reset();//resets imu
-    imu.setmode(OPERATION_MODE_NDOF);
-    imu.get_calib();
+    pc.printf("0x%02x:main: nmea2k version %s\r\n",node_addr,NMEA2K_VERSION);
+
     // TODO
     // assert ISO address
     // wait
 
     // start necessary processes
     heartbeat_thread.start(&heartbeat_process);
-    imu_thread.start(&imu_process);
-    // start GPS and IMU
 
+    // start GPS and IMU
+    //gps_thread.start(&gps_process); 
+    imu_thread.start(&imu_process);
+    
     pc.printf("0x%02x:main: listening for any pgn\r\n",node_addr);
     while (1) {
         ThisThread::sleep_for(1000);
@@ -90,12 +90,58 @@ void heartbeat_process(void)
             pc.printf("0x%02x:heartbeat_thread: failed sending %s\r\n",
                       node_addr,
                       d.name);
-        ThisThread::sleep_for(heartbeat_interval*100);
+        ThisThread::sleep_for(heartbeat_interval*1000);
     } // while(1)
 } // void heartbeat_thread(void)
 
 
+
+
+
 // GPS process periodically reads GPS and sends PGN 129025 Position
+void gps_process(void){
+
+  float lat=0.0;
+  float lon=0.0; 
+  nmea2k::Frame m;     // holds nmea2k data frame before sending
+  nmea2k::PduHeader h; // ISO11783-3 header information
+  nmea2k::Pgn129025 d(0,0);   // for PGN data fields
+  unsigned int interval=10; //time interval
+
+  pc.printf("0x%02x:gps_thread: starting gps_process\r\n", node_addr);
+  // Note GPS constructor should start the gps with following
+  // myGPS.begin(9600);
+  // myGPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA); // or whatever
+  // myGPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // or whatever
+  // myGPS.sendCommand(PGCMD_ANTENNA); 
+  
+  while(1) {
+  //TODO get GPS position LATER
+    lat = 0.0; //38.9784; // myGPS.latitude;
+    lon = 0.0; //-76.4922; // myGPS.longitude; 
+    
+  // send it
+    h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
+    d = nmea2k::Pgn129025(round(lat*PGN_129025_RES_LATITUDE), // latitude
+			  round(lon*PGN_129025_RES_LONGITUDE) // longitude
+			  );
+    m = nmea2k::Frame(h.id(),d.data(),d.dlen);
+    if (n2k.write(m)) {
+      txled = 1;
+      pc.printf("0x%02x:gps_thread: sent %s\r\n",
+		node_addr,
+		d.name);
+      ThisThread::sleep_for(5);
+      txled = 0;
+    } else
+      pc.printf("0x%02x:gps_thread: failed sending %s\r\n",
+		node_addr,
+		d.name);
+    
+    ThisThread::sleep_for(interval*1000);
+  } // while(1)
+}
+
 
 
 
@@ -108,8 +154,8 @@ void heartbeat_process(void)
 void imu_process(void){
 
   float yaw = 0.0;
-  float deviation = -41.0; // garbage value
-  float variation = -42.0; // garbage value
+  float deviation = 0.0; // garbage value
+  float variation = 0.0; // garbage value
 
   nmea2k::Frame m;     // holds nmea2k data frame before sending
   nmea2k::PduHeader h; // ISO11783-3 header information
@@ -117,10 +163,15 @@ void imu_process(void){
   unsigned int interval=10; //time interval
 
   pc.printf("0x%02x:imu_thread: starting imu_process\r\n", node_addr);
+
+    //NOTE these are taken care of in IMU constructor
+    //imu.reset();//resets imu
+    //imu.setmode(OPERATION_MODE_NDOF);
+    //imu.get_calib();
   
   while(1) {
     imu.get_angles();
-    yaw = imu.euler.yaw; //get yaw and store it
+    yaw = imu.get_yaw(); //get yaw and store it
 
     h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
     d = nmea2k::Pgn127250(0, // sid
@@ -142,7 +193,7 @@ void imu_process(void){
 		node_addr,
 		d.name);
     
-    ThisThread::sleep_for(interval*100);
+    ThisThread::sleep_for(interval*1000);
   } // while(1)
 }
 
