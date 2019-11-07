@@ -1,5 +1,5 @@
 # nav-2020
-### Dennis Evangelista, 2019
+### D Evangelista and L Marino, 2019
 Navigation GPS and IMU node for AY2020
 
 ## Push Test 1
@@ -33,3 +33,7 @@ Attitude 127257
 
 ## Applicability
 USNA Sailbot AY20 Hull 14 mod 3 and later.
+
+## Contributors
+D Evangelista and L Marino
+

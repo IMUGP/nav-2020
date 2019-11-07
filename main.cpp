@@ -16,15 +16,14 @@
 #define NAV_VERSION "14.3.0 PT1"
 
 Serial pc(USBTX,USBRX);
-BNO055 imu(p28, p27);
+BNO055 imu(p28, p27); // adafruit absolute orientation BNO055
 // We have the GPS connected to (p9,p10). The BNO is connected to (p28, p27).
-// TODO adafruit absolute GPS
-// TODO adafruit absolute orientation
+// TODO adafruit absolute gps
 
 nmea2k::CANLayer n2k(p30,p29); // used for sending nmea2k messages
 DigitalOut txled(LED1);
 DigitalOut rxled(LED2);
-unsigned char node_addr = 0x00; // TODO FIX LATER
+unsigned char node_addr = HULL14MOD3_NAV_ADDR; // TODO FIX LATER
 
 float yaw = 0.0;
 float i;
