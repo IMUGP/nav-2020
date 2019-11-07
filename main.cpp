@@ -1,6 +1,6 @@
 /** @file nav-2020/main.cpp
     @brief Navigational sensors for AY20 Sailbot Hull 14 mod 3
-    D Evangelista, 2019
+    D Evangelista and L Marino, 2019
 */
 
 #include "mbed.h"
@@ -23,11 +23,7 @@ BNO055 imu(p28, p27); // adafruit absolute orientation BNO055
 nmea2k::CANLayer n2k(p30,p29); // used for sending nmea2k messages
 DigitalOut txled(LED1);
 DigitalOut rxled(LED2);
-unsigned char node_addr = HULL14MOD3_NAV_ADDR; // TODO FIX LATER
-
-float yaw = 0.0;
-float i;
-float T;
+unsigned char node_addr = HULL14MOD3_NAV_ADDR; 
 
 Thread heartbeat_thread;
 Thread gps_thread;
@@ -101,44 +97,53 @@ void heartbeat_process(void)
 
 // GPS process periodically reads GPS and sends PGN 129025 Position
 
-// IMU process periodically reads IMU and sends PGN 130577 Direction Data
-void imu_process(void)
-{
 
-    nmea2k::Frame m;     // holds nmea2k data frame before sending
-    nmea2k::PduHeader h; // ISO11783-3 header information
-    nmea2k::Pgn127250 d(0,0,0,0,0);   // for PGN data fields
-    unsigned int interval=10; //time interval
-    pc.printf("0x%02x:imu_measurement_thread: starting imu_measurement_process\r\n",
-              node_addr);
-    while(1) {
-        imu.get_angles();
-        yaw = imu.euler.yaw; //get yaw and store it
-        i = 1.0;// garbage values
-        T = 2.0;
 
-        h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
-        d = nmea2k::Pgn127250(0, // instance
-                              round(yaw*PGN_127250_ANGLE_RES), // yaw
-                              round(i*PGN_127250_REF_TRUE), // current
-                              round(T*PGN_127250_REF_MAGNETIC), // temperature
-                              0 // sid
-                             );
-        m = nmea2k::Frame(h.id(),d.data(),d.dlen);
-        if (n2k.write(m)) {
-            txled = 1;
-            pc.printf("0x%02x:imu_thread: sent %s\r\n",
-                      node_addr,
-                      d.name);
-            ThisThread::sleep_for(5);
-            txled = 0;
-        } else
-            pc.printf("0x%02x:imu_thread: failed sending %s\r\n",
-                      node_addr,
-                      d.name);
 
-        ThisThread::sleep_for(interval*100);
-    } // while(1)
+
+// IMU process periodically reads IMU and sends 130577 Direction Data
+// or, for now, 127250 Vessel Heading...
+// Note BNO055 yaw 0.0 corresponds to magnetic north, so reference for
+// this sensor is PGN_127250_REF_MAGNETIC
+void imu_process(void){
+
+  float yaw = 0.0;
+  float deviation = -41.0; // garbage value
+  float variation = -42.0; // garbage value
+
+  nmea2k::Frame m;     // holds nmea2k data frame before sending
+  nmea2k::PduHeader h; // ISO11783-3 header information
+  nmea2k::Pgn127250 d(0,0,0,0,0);   // for PGN data fields
+  unsigned int interval=10; //time interval
+
+  pc.printf("0x%02x:imu_thread: starting imu_process\r\n", node_addr);
+  
+  while(1) {
+    imu.get_angles();
+    yaw = imu.euler.yaw; //get yaw and store it
+
+    h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
+    d = nmea2k::Pgn127250(0, // sid
+			  round(yaw*PGN_127250_ANGLE_RES), // yaw
+			  round(deviation*PGN_127250_ANGLE_RES), // deviation
+			  round(variation*PGN_127250_ANGLE_RES), // variation
+			  PGN_127250_REF_MAGNETIC // reference
+			  );
+    m = nmea2k::Frame(h.id(),d.data(),d.dlen);
+    if (n2k.write(m)) {
+      txled = 1;
+      pc.printf("0x%02x:imu_thread: sent %s\r\n",
+		node_addr,
+		d.name);
+      ThisThread::sleep_for(5);
+      txled = 0;
+    } else
+      pc.printf("0x%02x:imu_thread: failed sending %s\r\n",
+		node_addr,
+		d.name);
+    
+    ThisThread::sleep_for(interval*100);
+  } // while(1)
 }
 
 

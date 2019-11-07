@@ -31,6 +31,8 @@ We have the GPS connected to (p9,p10). The BNO is connected to (p28, p27).  The 
 
 Attitude 127257
 
+Note for simplicity during early tests we are first having this node send 127250 vessel heading... 
+
 ## Applicability
 USNA Sailbot AY20 Hull 14 mod 3 and later.
 
