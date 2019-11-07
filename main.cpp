@@ -117,8 +117,8 @@ void gps_process(void){
   
   while(1) {
   //TODO get GPS position LATER
-    lat = 0.0; //38.9784; // myGPS.latitude;
-    lon = 0.0; //-76.4922; // myGPS.longitude; 
+    lat = 0.0; //38.9784; // gps.latitude;
+    lon = 0.0; //-76.4922; //gps.longitude; 
     
   // send it
     h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
