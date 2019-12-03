@@ -20,10 +20,11 @@ Serial pc(USBTX,USBRX);
 SailbotIMU imu(p28,p27); // adafruit absolute orientation BNO055
 SailbotGPS gps(p9,p10); // adafruit absolute GPS
 
+
 nmea2k::CANLayer n2k(p30,p29); // used for sending nmea2k messages
 DigitalOut txled(LED1);
 DigitalOut rxled(LED2);
-unsigned char node_addr = HULL14MOD3_NAV_ADDR; 
+unsigned char node_addr = HULL14MOD3_NAV_ADDR;
 
 Thread heartbeat_thread;
 Thread gps_thread;
@@ -32,6 +33,8 @@ Thread imu_thread;
 void heartbeat_process(void);
 void gps_process(void);
 void imu_process(void);
+
+char c;
 
 int main(void)
 {
@@ -49,9 +52,9 @@ int main(void)
     heartbeat_thread.start(&heartbeat_process);
 
     // start GPS and IMU
-    //gps_thread.start(&gps_process); 
+    gps_thread.start(&gps_process);
     imu_thread.start(&imu_process);
-    
+
     pc.printf("0x%02x:main: listening for any pgn\r\n",node_addr);
     while (1) {
         ThisThread::sleep_for(1000);
@@ -99,47 +102,60 @@ void heartbeat_process(void)
 
 
 // GPS process periodically reads GPS and sends PGN 129025 Position
-void gps_process(void){
+void gps_process(void)
+{
 
-  float lat=0.0;
-  float lon=0.0; 
-  nmea2k::Frame m;     // holds nmea2k data frame before sending
-  nmea2k::PduHeader h; // ISO11783-3 header information
-  nmea2k::Pgn129025 d(0,0);   // for PGN data fields
-  unsigned int interval=10; //time interval
+    float lat=0.0;
+    float lon=0.0;
+    nmea2k::Frame m;     // holds nmea2k data frame before sending
+    nmea2k::PduHeader h; // ISO11783-3 header information
+    nmea2k::Pgn129025 d(0,0);   // for PGN data fields
+    unsigned int interval=10; //time interval
 
-  pc.printf("0x%02x:gps_thread: starting gps_process\r\n", node_addr);
-  // Note GPS constructor should start the gps with following
-  // myGPS.begin(9600);
-  // myGPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA); // or whatever
-  // myGPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // or whatever
-  // myGPS.sendCommand(PGCMD_ANTENNA); 
-  
-  while(1) {
-  //TODO get GPS position LATER
+    pc.printf("0x%02x:gps_thread: starting gps_process\r\n", node_addr);
+    // Note GPS constructor should start the gps with following
+    // myGPS.begin(9600);
+    // myGPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA); // or whatever
+    // myGPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // or whatever
+    // myGPS.sendCommand(PGCMD_ANTENNA);
     lat = 0.0; //38.9784; // gps.latitude;
-    lon = 0.0; //-76.4922; //gps.longitude; 
+    lon = 0.0; //-76.4922; //gps.longitude;
     
-  // send it
-    h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
-    d = nmea2k::Pgn129025(round(lat*PGN_129025_RES_LATITUDE), // latitude
-			  round(lon*PGN_129025_RES_LONGITUDE) // longitude
-			  );
-    m = nmea2k::Frame(h.id(),d.data(),d.dlen);
-    if (n2k.write(m)) {
-      txled = 1;
-      pc.printf("0x%02x:gps_thread: sent %s\r\n",
-		node_addr,
-		d.name);
-      ThisThread::sleep_for(5);
-      txled = 0;
-    } else
-      pc.printf("0x%02x:gps_thread: failed sending %s\r\n",
-		node_addr,
-		d.name);
-    
-    ThisThread::sleep_for(interval*1000);
-  } // while(1)
+    while(1) {
+        c = gps.read();   //queries the GPS
+        if ( gps.newNMEAreceived() ) {
+            if ( !gps.parse(gps.lastNMEA()) ) {
+                continue;
+            }//if ( !myGPS.parse..
+            if (refresh_Timer.read_ms() >= refresh_Time) {
+                refresh_Timer.reset();
+                if (gps.fix) {
+                    lat = gps.latitude;
+                    lon = gps.longitude;
+                }//if (myGPS.fix)
+            }//if (refresh_Timer..
+        }//if ( myGPS.newNMEAreceived() )
+
+        // send it
+        h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
+        d = nmea2k::Pgn129025(round(lat*PGN_129025_RES_LATITUDE), // latitude
+                              round(lon*PGN_129025_RES_LONGITUDE) // longitude
+                             );
+        m = nmea2k::Frame(h.id(),d.data(),d.dlen);
+        if (n2k.write(m)) {
+            txled = 1;
+            pc.printf("0x%02x:gps_thread: sent %s\r\n",
+                      node_addr,
+                      d.name);
+            ThisThread::sleep_for(5);
+            txled = 0;
+        } else
+            pc.printf("0x%02x:gps_thread: failed sending %s\r\n",
+                      node_addr,
+                      d.name);
+
+        ThisThread::sleep_for(interval*1000);
+    } // while(1)
 }
 
 
@@ -151,50 +167,50 @@ void gps_process(void){
 // or, for now, 127250 Vessel Heading...
 // Note BNO055 yaw 0.0 corresponds to magnetic north, so reference for
 // this sensor is PGN_127250_REF_MAGNETIC
-void imu_process(void){
+void imu_process(void)
+{
 
-  float yaw = 0.0;
-  float deviation = 0.0; // garbage value
-  float variation = 0.0; // garbage value
+    float yaw = 0.0;
+    float deviation = 0.0; // garbage value
+    float variation = 0.0; // garbage value
 
-  nmea2k::Frame m;     // holds nmea2k data frame before sending
-  nmea2k::PduHeader h; // ISO11783-3 header information
-  nmea2k::Pgn127250 d(0,0,0,0,0);   // for PGN data fields
-  unsigned int interval=10; //time interval
+    nmea2k::Frame m;     // holds nmea2k data frame before sending
+    nmea2k::PduHeader h; // ISO11783-3 header information
+    nmea2k::Pgn127250 d(0,0,0,0,0);   // for PGN data fields
+    unsigned int interval=10; //time interval
 
-  pc.printf("0x%02x:imu_thread: starting imu_process\r\n", node_addr);
+    pc.printf("0x%02x:imu_thread: starting imu_process\r\n", node_addr);
 
     //NOTE these are taken care of in IMU constructor
     //imu.reset();//resets imu
     //imu.setmode(OPERATION_MODE_NDOF);
     //imu.get_calib();
-  
-  while(1) {
-    imu.get_angles();
-    yaw = imu.get_yaw(); //get yaw and store it
 
-    h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
-    d = nmea2k::Pgn127250(0, // sid
-			  round(yaw*PGN_127250_ANGLE_RES), // yaw
-			  round(deviation*PGN_127250_ANGLE_RES), // deviation
-			  round(variation*PGN_127250_ANGLE_RES), // variation
-			  PGN_127250_REF_MAGNETIC // reference
-			  );
-    m = nmea2k::Frame(h.id(),d.data(),d.dlen);
-    if (n2k.write(m)) {
-      txled = 1;
-      pc.printf("0x%02x:imu_thread: sent %s\r\n",
-		node_addr,
-		d.name);
-      ThisThread::sleep_for(5);
-      txled = 0;
-    } else
-      pc.printf("0x%02x:imu_thread: failed sending %s\r\n",
-		node_addr,
-		d.name);
-    
-    ThisThread::sleep_for(interval*1000);
-  } // while(1)
+    while(1) {
+        imu.get_angles();
+        yaw = imu.get_yaw(); //get yaw and store it
+
+        h = nmea2k::PduHeader(d.p,d.pgn,node_addr,NMEA2K_BROADCAST);
+        d = nmea2k::Pgn127250(0, // sid
+                              round(yaw*PGN_127250_ANGLE_RES), // yaw
+                              round(deviation*PGN_127250_ANGLE_RES), // deviation
+                              round(variation*PGN_127250_ANGLE_RES), // variation
+                              PGN_127250_REF_MAGNETIC // reference
+                             );
+        m = nmea2k::Frame(h.id(),d.data(),d.dlen);
+        if (n2k.write(m)) {
+            txled = 1;
+            pc.printf("0x%02x:imu_thread: sent %s\r\n",
+                      node_addr,
+                      d.name);
+            ThisThread::sleep_for(5);
+            txled = 0;
+        } else
+            pc.printf("0x%02x:imu_thread: failed sending %s\r\n",
+                      node_addr,
+                      d.name);
+
+        ThisThread::sleep_for(interval*100);
+    } // while(1)
 }
-
 
